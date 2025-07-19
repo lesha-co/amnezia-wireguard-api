@@ -59,7 +59,7 @@ function createInitialServerConfig(serverPrivateKey) {
     ``,
   ].join("\n");
 
-  fs.writeFileSync(files.SERVER_CONF_FILE, serverConfig);
+  fs.writeFileSync(config.SERVER_CONF_FILE, serverConfig);
   console.log("Initial server configuration created.");
 }
 
