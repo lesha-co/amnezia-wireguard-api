@@ -173,7 +173,7 @@ export function addUser(username) {
   console.log(clientConfigFileName);
   return {
     username,
-    ip,
+    ip: clientIP,
     configFile: userConfigLocation,
     config: clientConfig,
     hasConfig: fs.existsSync(userConfigLocation),
