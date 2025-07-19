@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  amneziawg-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: amneziawg-api
+    ports:
+      - "3000:3000"
+      - "51000:51000"
+    environment:
+      - PORT=3000
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun
+    restart: unless-stopped
+    networks:
+      - amneziawg-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  amneziawg-network:
+    driver: bridge
