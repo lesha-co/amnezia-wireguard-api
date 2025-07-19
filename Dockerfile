@@ -16,6 +16,7 @@ RUN npm install
 # Copy application files
 COPY . .
 
+RUN rm awgstart awguser readme serverip.cfg vpn_params.cfg
 
 EXPOSE 3000/tcp
 EXPOSE 51820/udp

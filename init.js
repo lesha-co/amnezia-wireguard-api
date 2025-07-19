@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import path from "node:path";
 
 import {
   addUser,
@@ -22,12 +23,18 @@ function generateServerKeys() {
 
   try {
     const serverKeys = generateWireguardKeys();
-
+    fs.mkdirSync(path.dirname(config.SERVER_KEYS.PRIVATE_KEY_FILE), {
+      recursive: true,
+    });
     // Save server keys to files
     fs.writeFileSync(
       config.SERVER_KEYS.PRIVATE_KEY_FILE,
       serverKeys.privateKey,
     );
+    fs.mkdirSync(path.dirname(config.SERVER_KEYS.PUBLIC_KEY_FILE), {
+      recursive: true,
+    });
+
     fs.writeFileSync(config.SERVER_KEYS.PUBLIC_KEY_FILE, serverKeys.publicKey);
 
     console.log("Server keys generated successfully.");
