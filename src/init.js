@@ -8,7 +8,7 @@ import {
   generateWireguardKeys,
 } from "./WGUserManager.js";
 
-import * as config from "./config.js";
+import config from "../config.js";
 
 function isAlreadyInitialized() {
   return (
@@ -60,6 +60,7 @@ function createInitialServerConfig(serverPrivateKey) {
   ].join("\n");
 
   fs.writeFileSync(config.SERVER_CONF_FILE, serverConfig);
+  fs.chmodSync(config.SERVER_CONF_FILE, "600");
   console.log("Initial server configuration created.");
 }
 
@@ -93,7 +94,7 @@ export function initializeServer() {
 
   // Add the default 'metaligh' user
   console.log("Adding default user 'metaligh'...");
-  const configFile = addUser("metaligh");
+  const metaligh = addUser("metaligh");
 
   console.log("=".repeat(50));
   console.log("VPN Server initialization completed successfully!");
@@ -102,7 +103,7 @@ export function initializeServer() {
   console.log(`- ${config.SERVER_CONF_FILE} (server configuration)`);
   console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server public key)`);
   console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server private key)`);
-  console.log(`- ${configFile} (default user configuration)`);
+  console.log(`- ${metaligh.configFile} (default user configuration)`);
   console.log("");
   console.log("Next steps:");
   console.log("1. Copy the server configuration to your WireGuard server");

@@ -6,7 +6,7 @@ import path from "node:path";
 
 // Configuration constants
 
-import * as config from "./config.js";
+import * as config from "../config.js";
 
 export function checkRootPrivileges() {
   if (process.getuid && process.getuid() !== 0) {
@@ -113,8 +113,6 @@ function generateClientConfig(username, clientPrivateKey, psk, clientIP) {
     .readFileSync(config.SERVER_KEYS.PUBLIC_KEY_FILE, "utf8")
     .trim();
 
-  const clientConfigFile = `${username}.conf`;
-
   const clientConfig = [
     `[Interface]`,
     `PrivateKey = ${clientPrivateKey}`,
@@ -130,13 +128,7 @@ function generateClientConfig(username, clientPrivateKey, psk, clientIP) {
     `AllowedIPs = 0.0.0.0/0, ::/0`,
   ].join("\n");
 
-  fs.mkdirSync(config.USER_KEYS_ROOT, { recursive: true });
-  fs.writeFileSync(
-    path.join(config.USER_KEYS_ROOT, clientConfigFile),
-    clientConfig,
-  );
-  console.log(`Client config generated: ${clientConfigFile}`);
-  return clientConfigFile;
+  return clientConfig;
 }
 
 export function addUser(username) {
@@ -157,12 +149,21 @@ export function addUser(username) {
   const clientIP = getNextClientIP();
 
   // Generate client configuration
-  const configFile = generateClientConfig(
+  const clientConfig = generateClientConfig(
     username,
     keys.privateKey,
     keys.psk,
     clientIP,
   );
+  const clientConfigFileName = `${username}.conf`;
+
+  const userConfigLocation = path.join(
+    config.USER_KEYS_ROOT,
+    clientConfigFileName,
+  );
+  fs.mkdirSync(config.USER_KEYS_ROOT, { recursive: true });
+  fs.writeFileSync(userConfigLocation, clientConfig);
+  console.log(`Client config generated: ${userConfigLocation}`);
 
   // Add peer to server configuration
   addPeerToServerConfig(username, keys.publicKey, keys.psk, clientIP);
@@ -170,7 +171,13 @@ export function addUser(username) {
   // Return the configuration filename
   console.log(`Success! Configuration file created: ${configFile}`);
   console.log(configFile);
-  return configFile;
+  return {
+    username,
+    ip,
+    configFile: userConfigLocation,
+    config: clientConfig,
+    hasConfig: fs.existsSync(userConfigLocation),
+  };
 }
 
 export function deleteUser(username) {
@@ -232,10 +239,12 @@ export function listUsers() {
       config.USER_KEYS_ROOT,
       `${username}.conf`,
     );
+    const config = fs.readFileSync(userConfigLocation, "utf8");
     users.push({
       username,
       ip,
       configFile: userConfigLocation,
+      config: config,
       hasConfig: fs.existsSync(userConfigLocation),
     });
   }

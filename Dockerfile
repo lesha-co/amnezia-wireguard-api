@@ -1,5 +1,7 @@
 FROM metaligh/amneziawg
 
+
+
 # Install Node.js
 RUN apt-get update && \
     apt-get install -y curl && \
@@ -18,8 +20,6 @@ COPY . .
 
 RUN rm awgstart awguser readme serverip.cfg vpn_params.cfg
 
-EXPOSE 3000/tcp
-EXPOSE 51820/udp
 
 # Run as root (required for WireGuard operations)
 USER root
