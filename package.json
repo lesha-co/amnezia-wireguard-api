@@ -6,8 +6,8 @@
   "main": "adduser.js",
   "scripts": {
     "init": "node src/init.js",
-    "start": "node src/server/index.js",
-    "dev": "nodemon src/server/index.js"
+    "start": "node src/apiserver/index.js",
+    "dev": "nodemon src/apiserver/index.js"
   },
   "dependencies": {
     "express": "^4.21.2"
