@@ -4,8 +4,6 @@ import express from "express";
 const router = express.Router();
 
 // Middleware
-router.use(express.json());
-router.use(express.urlencoded({ extended: true }));
 
 // API Routes
 

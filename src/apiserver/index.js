@@ -8,6 +8,8 @@ import ensureSSLCertificate from "./certificate.js";
 import config from "../../config.js";
 
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Initialize SSL certificate
 const fingerprint = ensureSSLCertificate();
