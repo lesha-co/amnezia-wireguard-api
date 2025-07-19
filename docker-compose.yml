@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: amneziawg-api
     ports:
-      - "3000:3000"
+      - "3443:3443"
       - "51000:51000"
     environment:
       - PORT=3443
