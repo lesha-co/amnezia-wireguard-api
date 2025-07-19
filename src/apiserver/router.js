@@ -32,6 +32,7 @@ router.get("/server", (req, res) => {
 router.post("/access-keys", (req, res) => {
   try {
     const { name } = req.body;
+    console.log(JSON.stringify(req.body));
     console.log("Creating a key for", name);
 
     // Validate required fields
