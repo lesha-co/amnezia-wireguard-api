@@ -100,9 +100,9 @@ export function initializeServer() {
     console.log("VPN Server initialization completed successfully!");
     console.log("=".repeat(50));
     console.log("Generated files:");
-    console.log(`- ${profiles.SERVER_CONF_FILE} (server configuration)`);
-    console.log(`- ${profiles.SERVER_PUBLIC_KEY_FILE} (server public key)`);
-    console.log(`- ${files.SERVER_PRIVATE_KEY_FILE} (server private key)`);
+    console.log(`- ${config.SERVER_CONF_FILE} (server configuration)`);
+    console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server public key)`);
+    console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server private key)`);
     console.log(`- ${configFile} (default user configuration)`);
     console.log("");
     console.log("Next steps:");
