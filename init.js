@@ -61,7 +61,6 @@ export function initializeServer() {
 
   // Check prerequisites
   checkRootPrivileges();
-  checkPrerequisites();
 
   // Check if already initialized
   if (isAlreadyInitialized()) {
