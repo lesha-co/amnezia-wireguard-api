@@ -73,12 +73,12 @@ export function initializeServer() {
   if (isAlreadyInitialized()) {
     console.log("Server appears to be already initialized.");
     console.log("Found existing configuration files:");
-    if (fs.existsSync(files.SERVER_CONF_FILE))
-      console.log(`- ${files.SERVER_CONF_FILE}`);
-    if (fs.existsSync(files.SERVER_PUBLIC_KEY_FILE))
-      console.log(`- ${files.SERVER_PUBLIC_KEY_FILE}`);
-    if (fs.existsSync(files.SERVER_PRIVATE_KEY_FILE))
-      console.log(`- ${files.SERVER_PRIVATE_KEY_FILE}`);
+    if (fs.existsSync(config.SERVER_CONF_FILE))
+      console.log(`- ${config.SERVER_CONF_FILE}`);
+    if (fs.existsSync(config.SERVER_KEYS.PUBLIC_KEY_FILE))
+      console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE}`);
+    if (fs.existsSync(config.SERVER_KEYS.PRIVATE_KEY_FILE))
+      console.log(`- ${config.SERVER_KEYS.PRIVATE_KEY_FILE}`);
     console.log(
       "Use WGUserManager.js to manage users or delete existing files to re-initialize.",
     );
