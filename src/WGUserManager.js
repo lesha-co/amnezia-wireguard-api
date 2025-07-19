@@ -226,7 +226,6 @@ export function listUsers() {
   const userRegex = /# Peer configuration for (\w+)/g;
   const users = [];
   let match;
-
   while ((match = userRegex.exec(serverConfig)) !== null) {
     const username = match[1];
     const ipMatch = serverConfig.match(
@@ -239,12 +238,12 @@ export function listUsers() {
       config.USER_KEYS_ROOT,
       `${username}.conf`,
     );
-    const config = fs.readFileSync(userConfigLocation, "utf8");
+    const userConfig = fs.readFileSync(userConfigLocation, "utf8");
     users.push({
       username,
       ip,
       configFile: userConfigLocation,
-      config: config,
+      config: userConfig,
       hasConfig: fs.existsSync(userConfigLocation),
     });
   }
