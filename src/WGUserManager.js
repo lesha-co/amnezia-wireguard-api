@@ -169,8 +169,8 @@ export function addUser(username) {
   addPeerToServerConfig(username, keys.publicKey, keys.psk, clientIP);
 
   // Return the configuration filename
-  console.log(`Success! Configuration file created: ${configFile}`);
-  console.log(configFile);
+  console.log(`Success! Configuration file created: ${clientConfigFileName}`);
+  console.log(clientConfigFileName);
   return {
     username,
     ip,
