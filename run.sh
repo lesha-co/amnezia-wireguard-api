@@ -8,4 +8,4 @@ awg-quick up awg0
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
 # Start the Node.js application
-node server.js
+node src/apiserver
