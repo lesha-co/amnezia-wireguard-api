@@ -1,6 +1,6 @@
 #!/bin/bash
 
-awguser
+npm run init
 # Start AmneziaWG interface
 awg-quick up awg0
 

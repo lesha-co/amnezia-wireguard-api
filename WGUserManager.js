@@ -2,27 +2,27 @@
 
 import fs from "node:fs";
 import { execSync } from "node:child_process";
+import path from "node:path";
 
 // Configuration constants
-const VPN_PARAMS_FILE = "./vpn_params.cfg";
-const SERVER_CONF_FILE = "awg0.conf";
-const CLIENT_IP_BASE = "192.168.200.";
-const SERVER_PUBLIC_KEY_FILE = "server_public_metaligh.key";
-const SERVER_IP_FILE = "serverip.cfg";
 
-function validateEnvironment() {
-  // Check if running as root
+import * as config from "./config.js";
+
+export function checkRootPrivileges() {
   if (process.getuid && process.getuid() !== 0) {
     console.error("Please run the script as root.");
     process.exit(1);
   }
+}
+
+function validateEnvironment() {
+  // Check if running as root
+  checkRootPrivileges();
 
   // Check if required files exist
   const requiredFiles = [
-    VPN_PARAMS_FILE,
-    SERVER_CONF_FILE,
-    SERVER_PUBLIC_KEY_FILE,
-    SERVER_IP_FILE,
+    config.SERVER_CONF_FILE,
+    config.SERVER_KEYS.PUBLIC_KEY_FILE,
   ];
 
   for (const file of requiredFiles) {
@@ -46,15 +46,13 @@ function validateUsername(username) {
   }
 
   // Check if user already exists
-  const serverConfig = fs.readFileSync(SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
   if (serverConfig.includes(`# Peer configuration for ${username}`)) {
     throw new Error(`User ${username} already exists`);
   }
 }
 
-function generateClientKeys(username) {
-  console.log(`Generating keys for ${username}...`);
-
+export function generateWireguardKeys() {
   try {
     // Generate private key
     const privateKey = execSync("awg genkey", { encoding: "utf8" }).trim();
@@ -67,7 +65,6 @@ function generateClientKeys(username) {
     // Generate preshared key
     const psk = execSync("awg genpsk", { encoding: "utf8" }).trim();
 
-    console.log(`Keys generated for ${username}.`);
     return { privateKey, publicKey, psk };
   } catch (error) {
     throw new Error(`Error generating keys: ${error.message}`);
@@ -75,7 +72,7 @@ function generateClientKeys(username) {
 }
 
 function getNextClientIP() {
-  const serverConfig = fs.readFileSync(SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
   const ipRegex = /AllowedIPs = 192\.168\.200\.(\d+)/g;
   const ips = [];
   let match;
@@ -85,11 +82,11 @@ function getNextClientIP() {
   }
 
   if (ips.length === 0) {
-    return `${CLIENT_IP_BASE}2`;
+    return `${config.CLIENT_IP_BASE}2`;
   }
 
   const lastIp = Math.max(...ips);
-  return `${CLIENT_IP_BASE}${lastIp + 1}`;
+  return `${config.CLIENT_IP_BASE}${lastIp + 1}`;
 }
 
 function addPeerToServerConfig(username, clientPublicKey, psk, clientIP) {
@@ -106,20 +103,15 @@ function addPeerToServerConfig(username, clientPublicKey, psk, clientIP) {
     `AllowedIPs = ${clientIP}/32`,
   ].join("\n");
 
-  fs.appendFileSync(SERVER_CONF_FILE, peerConfig);
+  fs.appendFileSync(config.SERVER_CONF_FILE, peerConfig);
 }
 
 function generateClientConfig(username, clientPrivateKey, psk, clientIP) {
   console.log(`Generating client config for ${username}...`);
 
   const serverPublicKey = fs
-    .readFileSync(SERVER_PUBLIC_KEY_FILE, "utf8")
+    .readFileSync(config.SERVER_KEYS.PUBLIC_KEY_FILE, "utf8")
     .trim();
-  const serverIpLines = fs.readFileSync(SERVER_IP_FILE, "utf8").split("\n");
-  const serverIP = serverIpLines[0].trim();
-  const dns = serverIpLines[1].trim();
-  const serverPort = serverIpLines[2].trim();
-  const vpnParams = fs.readFileSync(VPN_PARAMS_FILE, "utf8").trim();
 
   const clientConfigFile = `${username}.conf`;
 
@@ -127,18 +119,22 @@ function generateClientConfig(username, clientPrivateKey, psk, clientIP) {
     `[Interface]`,
     `PrivateKey = ${clientPrivateKey}`,
     `Address = ${clientIP}/32`,
-    `DNS = ${dns}`,
+    `DNS = ${config.SERVER_IP.dns}`,
     ``,
-    `${vpnParams}`,
+    `${config.VPN_PARAMS}`,
     ``,
     `[Peer]`,
     `PublicKey = ${serverPublicKey}`,
     `PresharedKey = ${psk}`,
-    `Endpoint = ${serverIP}:${serverPort}`,
+    `Endpoint = ${config.SERVER_IP.serverIP}:${config.SERVER_IP.serverPort}`,
     `AllowedIPs = 0.0.0.0/0, ::/0`,
   ].join("\n");
 
-  fs.writeFileSync(clientConfigFile, clientConfig);
+  fs.mkdirSync(config.USER_KEYS_ROOT, { recursive: true });
+  fs.writeFileSync(
+    path.join(config.USER_KEYS_ROOT, clientConfigFile),
+    clientConfig,
+  );
   console.log(`Client config generated: ${clientConfigFile}`);
   return clientConfigFile;
 }
@@ -153,16 +149,23 @@ export function addUser(username) {
   validateUsername(username);
 
   // Generate client keys
-  const { privateKey, publicKey, psk } = generateClientKeys(username);
+  console.log(`Generating keys for ${username}...`);
+  const keys = generateWireguardKeys();
+  console.log(`Keys generated for ${username}.`);
 
   // Get next available IP
   const clientIP = getNextClientIP();
 
   // Generate client configuration
-  const configFile = generateClientConfig(username, privateKey, psk, clientIP);
+  const configFile = generateClientConfig(
+    username,
+    keys.privateKey,
+    keys.psk,
+    clientIP,
+  );
 
   // Add peer to server configuration
-  addPeerToServerConfig(username, publicKey, psk, clientIP);
+  addPeerToServerConfig(username, keys.publicKey, keys.psk, clientIP);
 
   // Return the configuration filename
   console.log(`Success! Configuration file created: ${configFile}`);
@@ -173,7 +176,7 @@ export function addUser(username) {
 export function deleteUser(username) {
   validateEnvironment();
 
-  const serverConfig = fs.readFileSync(SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
   if (!serverConfig.includes(`# Peer configuration for ${username}`)) {
     throw new Error(`User ${username} does not exist`);
   }
@@ -197,10 +200,10 @@ export function deleteUser(username) {
     filteredLines.push(lines[i]);
   }
 
-  fs.writeFileSync(SERVER_CONF_FILE, filteredLines.join("\n"));
+  fs.writeFileSync(config.SERVER_CONF_FILE, filteredLines.join("\n"));
 
   // Remove client config file
-  const configFile = `${username}.conf`;
+  const configFile = path.join(config.USER_KEYS_ROOT, `${username}.conf`);
   if (fs.existsSync(configFile)) {
     fs.unlinkSync(configFile);
   }
@@ -212,7 +215,7 @@ export function deleteUser(username) {
 export function listUsers() {
   validateEnvironment();
 
-  const serverConfig = fs.readFileSync(SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(files.SERVER_CONF_FILE, "utf8");
   const userRegex = /# Peer configuration for (\w+)/g;
   const users = [];
   let match;
@@ -225,25 +228,17 @@ export function listUsers() {
       ),
     );
     const ip = ipMatch ? ipMatch[1] : "Unknown";
-
+    const userConfigLocation = path.join(
+      config.USER_KEYS_ROOT,
+      `${username}.conf`,
+    );
     users.push({
       username,
       ip,
-      configFile: `${username}.conf`,
-      hasConfig: fs.existsSync(`${username}.conf`),
+      configFile: userConfigLocation,
+      hasConfig: fs.existsSync(userConfigLocation),
     });
   }
 
   return users;
-}
-
-// Main execution check for ES modules
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const username = process.argv[2];
-  if (!username) {
-    console.error("Usage: node WGUserManager.js <username>");
-    console.error("Example: node WGUserManager.js john");
-    process.exit(1);
-  }
-  addUser(username);
 }
