@@ -6,7 +6,7 @@ import path from "node:path";
 
 // Configuration constants
 
-import * as config from "../config.js";
+import config from "../config.js";
 
 export function checkRootPrivileges() {
   if (process.getuid && process.getuid() !== 0) {
