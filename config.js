@@ -1,6 +1,6 @@
 export default {
   SERVER_IP: {
-    serverIP: "127.0.0.1", // only for client configs
+    serverIP: "146.190.87.45", // only for client configs
     serverPort: 51820, // The port on which the awg server will run
     dns: "8.8.8.8, 8.8.4.4", // only for client configs
   },
