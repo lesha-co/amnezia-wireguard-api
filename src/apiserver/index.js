@@ -12,14 +12,14 @@ const app = express();
 // Initialize SSL certificate
 const fingerprint = ensureSSLCertificate();
 
-app.use("/" + config.ADMIN.SECRET_ENDPOINT, router);
-
 app.all("*", (req, res, next) => {
   console.log(
     `[${new Date().toISOString()}] : ${req.method} ${req.originalUrl}`,
   );
   next();
 });
+
+app.use("/" + config.ADMIN.SECRET_ENDPOINT, router);
 
 // Default catch-all endpoint for logging unimplemented routes
 app.all("*", (req, res) => {
