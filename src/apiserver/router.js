@@ -32,6 +32,7 @@ router.get("/server", (req, res) => {
 router.post("/access-keys", (req, res) => {
   try {
     const { name } = req.body;
+    console.log("Creating a key for", name);
 
     // Validate required fields
     if (!name || typeof name !== "string") {
@@ -41,8 +42,12 @@ router.post("/access-keys", (req, res) => {
       });
     }
 
+    console.log("Name is valid");
+
     // Add user using WGUserManager
     const result = addUser(name);
+
+    console.log("created", result.ip);
 
     // Return access key information according to API spec
     const accessKey = {
