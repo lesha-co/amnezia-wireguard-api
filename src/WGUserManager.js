@@ -222,7 +222,7 @@ export function deleteUser(username) {
 export function listUsers() {
   validateEnvironment();
 
-  const serverConfig = fs.readFileSync(files.SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
   const userRegex = /# Peer configuration for (\w+)/g;
   const users = [];
   let match;
