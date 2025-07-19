@@ -1,5 +1,6 @@
 #!/bin/bash
 
+awguser
 # Start AmneziaWG interface
 awg-quick up awg0
 

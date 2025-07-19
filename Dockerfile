@@ -15,9 +15,7 @@ COPY package.json ./
 RUN npm install
 
 # Copy application files
-COPY WGUserManager.js ./
-COPY server.js ./
-COPY run.sh ./
+COPY . .
 
 
 EXPOSE 3000/tcp

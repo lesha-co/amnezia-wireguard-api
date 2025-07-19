@@ -1,0 +1,242 @@
+#!/bin/bash
+
+# Check if the script is run as root
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run the script as root."
+  exit
+fi
+
+# Path to the VPN parameters file
+VPN_PARAMS_FILE="./vpn_params.cfg"
+
+# Base server configuration file
+SERVER_CONF_FILE="awg0.conf"
+# Base IP for clients
+CLIENT_IP_BASE="192.168.200."
+
+# Server key files (generated once or upon request)
+SERVER_PRIVATE_KEY_FILE="server_private_metaligh.key"
+SERVER_PUBLIC_KEY_FILE="server_public_metaligh.key"
+PSK_FILE="preshared_metaligh.key"
+
+# Function to regenerate server keys
+generate_server_keys() {
+  echo "Generating server keys..."
+  awg genkey > $SERVER_PRIVATE_KEY_FILE
+  awg pubkey < $SERVER_PRIVATE_KEY_FILE > $SERVER_PUBLIC_KEY_FILE
+  awg genpsk > $PSK_FILE
+  echo "Server keys generated."
+}
+
+# Function to generate client keys
+generate_client_keys() {
+  local user=$1
+  echo "Generating keys for $user..."
+
+  local client_private_key_file="client_private_$user.key"
+  local client_public_key_file="client_public_$user.key"
+  local psk_file="preshared_$user.key"
+
+  awg genkey > $client_private_key_file
+  awg pubkey < $client_private_key_file > $client_public_key_file
+  awg genpsk > $psk_file
+
+  echo "Keys generated for $user."
+}
+
+# Function to get the next available client IP
+get_next_client_ip() {
+  local last_ip=$(grep -oP 'AllowedIPs = 192.168.200.\K[0-9]+' $SERVER_CONF_FILE | sort -n | tail -n1)
+  if [ -z "$last_ip" ]; then
+    echo "${CLIENT_IP_BASE}2"
+  else
+    next_ip=$((last_ip + 1))
+    echo "${CLIENT_IP_BASE}${next_ip}"
+  fi
+}
+
+# Function to get the existing client IP
+get_client_ip() {
+  local user=$1
+  grep -A 1 "# Peer configuration for $user" $SERVER_CONF_FILE | grep -oP 'AllowedIPs = \K[^/]+'
+}
+
+# Function to remove existing peer from server config
+remove_peer_from_server_config() {
+  local user=$1
+  if grep -q "# Peer configuration for $user" $SERVER_CONF_FILE; then
+    echo "Removing old configuration for $user from server config..."
+    sed -i "/# Peer configuration for $user/,+5d" $SERVER_CONF_FILE
+  fi
+}
+
+# Function to add a new user to the server config
+add_peer_to_server_config() {
+  local user=$1
+  local client_public_key=$(cat "client_public_$user.key")
+  local psk=$(cat "preshared_$user.key")
+  local client_ip=$2
+
+  echo "Adding new peer $user to server config with IP $client_ip..."
+
+  cat <<EOL >> $SERVER_CONF_FILE
+
+# Peer configuration for $user
+[Peer]
+PublicKey = $client_public_key
+PresharedKey = $psk
+AllowedIPs = $client_ip/32
+EOL
+}
+
+# Function to generate client configuration
+generate_client_config() {
+  local user=$1
+  local client_private_key=$(cat "client_private_$user.key")
+  local server_public_key=$(cat $SERVER_PUBLIC_KEY_FILE)
+  local psk=$(cat "preshared_$user.key")
+  local server_ip=$(head -n 1 serverip.cfg)
+  local client_ip=$2
+  local dns=$(sed -n '2p' serverip.cfg)
+  local server_port=$(sed -n '3p' serverip.cfg)
+
+  local client_conf_file="${user}.conf"
+
+  echo "Generating client config for $user..."
+
+  cat <<EOL > $client_conf_file
+[Interface]
+PrivateKey = $client_private_key
+Address = $client_ip/32
+DNS = $dns
+
+$(cat $VPN_PARAMS_FILE)
+
+[Peer]
+PublicKey = $server_public_key
+PresharedKey = $psk
+Endpoint = $server_ip:$server_port
+AllowedIPs = 0.0.0.0/0, ::/0
+EOL
+
+  echo "Client config generated: $client_conf_file"
+
+  # Output QR code
+  echo "Displaying QR code for $user..."
+  qrencode -t ANSIUTF8 < $client_conf_file
+}
+
+# Function to delete temporary key files
+delete_key_files() {
+  local user=$1
+  echo "Deleting key files for $user..."
+  rm -f "client_private_$user.key" "client_public_$user.key" "preshared_$user.key"
+}
+
+# Function to delete all key and configuration files
+delete_all_files() {
+  echo "Deleting all key and configuration files..."
+  rm -f client_private_*.key client_public_*.key preshared_*.key *.conf $SERVER_PRIVATE_KEY_FILE $SERVER_PUBLIC_KEY_FILE $PSK_FILE $SERVER_CONF_FILE
+}
+
+# Function to delete a user
+delete_user() {
+  local user=$1
+  if grep -q "# Peer configuration for $user" $SERVER_CONF_FILE; then
+    echo "Deleting user $user..."
+
+    # Remove user's section from server config
+    sed -i "/# Peer configuration for $user/,+5d" $SERVER_CONF_FILE
+
+    # Remove client config
+    rm -f "${user}.conf"
+
+    echo "User $user deleted."
+  else
+    echo "User $user not found."
+  fi
+}
+
+# Main logic
+while true; do
+  if ls *.conf 1> /dev/null 2>&1; then
+    echo "Configuration files already exist."
+    echo "Choose an option:"
+    echo "1) Delete all keys and configuration files and regenerate"
+    echo "2) Add new user"
+    echo "3) Delete user"
+    echo "4) Exit"
+    read -p "Enter your choice: " choice
+
+    case $choice in
+      1)
+        delete_all_files  # Delete all keys
+        exec "$0"  # Restart
+        ;;
+      2)
+        read -p "Enter the new user name: " new_user
+        if [ -z "$new_user" ]; then
+          echo "User name cannot be empty."
+          exit 1
+        fi
+        generate_client_keys $new_user
+        client_ip=$(get_next_client_ip)  # Get new IP
+        generate_client_config $new_user $client_ip
+        add_peer_to_server_config $new_user $client_ip
+        delete_key_files $new_user  # Delete temporary keys
+        echo "User $new_user added."
+        exit 0
+        ;;
+      3)
+        read -p "Enter the user name to delete: " del_user
+        if [ -z "$del_user" ]; then
+          echo "User name cannot be empty."
+          exit 1
+        fi
+        delete_user $del_user
+        exit 0
+        ;;
+      4)
+        echo "Exiting..."
+        exit 0
+        ;;
+      *)
+        echo "Invalid choice."
+        ;;
+    esac
+  else
+    echo "No configuration files found. Generating new keys and config for 'metaligh' user..."
+    generate_server_keys  # Generate new keys
+    generate_client_keys "metaligh"
+    client_ip=$(get_next_client_ip)  # IP for first iser
+    generate_client_config "metaligh" $client_ip
+
+    # Initialize server config
+    echo "Creating initial server configuration..."
+    server_private_key=$(cat $SERVER_PRIVATE_KEY_FILE)
+    server_ip=$(head -n 1 serverip.cfg)  # Get server IP from file
+    server_port=$(sed -n '3p' serverip.cfg)  # Get server port from file
+
+    echo "Server port: $server_port"  # Debug output
+
+    cat <<EOL > $SERVER_CONF_FILE
+[Interface]
+PrivateKey = $server_private_key
+Address = 192.168.200.1/32
+ListenPort = $server_port
+
+$(cat $VPN_PARAMS_FILE)
+
+EOL
+    add_peer_to_server_config "metaligh" $client_ip
+
+    delete_key_files "metaligh"  #Delete temporary files
+    echo "New configuration for 'metaligh' generated."
+
+    # Output QR code for metaligh
+    echo "Displaying QR code for 'metaligh'..."
+    qrencode -t ANSIUTF8 < "metaligh.conf"
+
+    exit 0
+  fi
+done
