@@ -5,7 +5,7 @@ import { addUser, deleteUser, listUsers } from "./WGUserManager.js";
 import fs from "fs";
 
 const app = express();
-const PORT = files.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
