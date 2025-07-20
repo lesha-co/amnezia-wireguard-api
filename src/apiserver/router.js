@@ -4,6 +4,11 @@ import crypto from "node:crypto";
 
 const router = express.Router();
 
+router.all("*", (req, res, next) => {
+  console.log(`[${new Date().toISOString()}] : ${req.method} ${req.url}`);
+  next();
+});
+
 // Middleware
 
 // API Routes

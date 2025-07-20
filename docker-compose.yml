@@ -6,7 +6,7 @@ services:
     container_name: amneziawg-api
     ports:
       - "3443:3443"
-      - "51000:51000"
+      - "51000:51000/udp"
     environment:
       - PORT=3443
     privileged: true

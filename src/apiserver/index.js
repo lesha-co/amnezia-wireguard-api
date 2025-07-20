@@ -23,14 +23,6 @@ app.use(async (req, res, next) => {
   next();
 });
 
-app.all("*", (req, res, next) => {
-  console.log(
-    `[${new Date().toISOString()}] : ${req.method} ${req.originalUrl}`,
-  );
-  console.log(req.headers);
-  next();
-});
-
 app.use("/" + config.ADMIN.SECRET_ENDPOINT, router);
 
 // Default catch-all endpoint for logging unimplemented routes
