@@ -6,6 +6,7 @@ import {
   addUser,
   checkRootPrivileges,
   generateWireguardKeys,
+  getConfigName,
 } from "./WGUserManager.js";
 
 import config from "../config.js";
