@@ -12,7 +12,7 @@ import config from "../config.js";
 
 function isAlreadyInitialized() {
   return (
-    fs.existsSync(config.SERVER_CONF_FILE) &&
+    fs.existsSync(getConfigName(config.SERVER_INTERFACE_NAME)) &&
     fs.existsSync(config.SERVER_KEYS.PUBLIC_KEY_FILE) &&
     fs.existsSync(config.SERVER_KEYS.PRIVATE_KEY_FILE)
   );
@@ -59,8 +59,8 @@ function createInitialServerConfig(serverPrivateKey) {
     ``,
   ].join("\n");
 
-  fs.writeFileSync(config.SERVER_CONF_FILE, serverConfig);
-  fs.chmodSync(config.SERVER_CONF_FILE, "600");
+  fs.writeFileSync(getConfigName(config.SERVER_INTERFACE_NAME), serverConfig);
+  fs.chmodSync(getConfigName(config.SERVER_INTERFACE_NAME), "600");
   console.log("Initial server configuration created.");
 }
 
@@ -74,8 +74,8 @@ export function initializeServer() {
   if (isAlreadyInitialized()) {
     console.log("Server appears to be already initialized.");
     console.log("Found existing configuration files:");
-    if (fs.existsSync(config.SERVER_CONF_FILE))
-      console.log(`- ${config.SERVER_CONF_FILE}`);
+    if (fs.existsSync(getConfigName(config.SERVER_INTERFACE_NAME)))
+      console.log(`- ${getConfigName(config.SERVER_INTERFACE_NAME)}`);
     if (fs.existsSync(config.SERVER_KEYS.PUBLIC_KEY_FILE))
       console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE}`);
     if (fs.existsSync(config.SERVER_KEYS.PRIVATE_KEY_FILE))
@@ -100,7 +100,9 @@ export function initializeServer() {
   console.log("VPN Server initialization completed successfully!");
   console.log("=".repeat(50));
   console.log("Generated files:");
-  console.log(`- ${config.SERVER_CONF_FILE} (server configuration)`);
+  console.log(
+    `- ${getConfigName(config.SERVER_INTERFACE_NAME)} (server configuration)`,
+  );
   console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server public key)`);
   console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server private key)`);
   console.log(`- ${metaligh.configFile} (default user configuration)`);

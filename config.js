@@ -25,7 +25,7 @@ export default {
     "H3 = 1209847463",
     "H4 = 1646644382",
   ].join("\n"),
-  SERVER_CONF_FILE: "awg0.conf",
+  SERVER_INTERFACE_NAME: "awg0",
   USER_KEYS_ROOT: "user-keys",
   CLIENT_IP_BASE: "192.168.200.",
 };

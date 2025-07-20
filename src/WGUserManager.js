@@ -8,6 +8,22 @@ import path from "node:path";
 
 import config from "../config.js";
 
+export function getConfigName(iface) {
+  return `${iface}.conf`;
+}
+
+export function restart() {
+  // run
+  // awg-quick down awg0
+  // awg-quick up awg0
+  execSync(`awg-quick down ${config.SERVER_INTERFACE_NAME}`, {
+    stdio: "inherit",
+  });
+  execSync(`awg-quick up ${config.SERVER_INTERFACE_NAME}`, {
+    stdio: "inherit",
+  });
+}
+
 export function checkRootPrivileges() {
   if (process.getuid && process.getuid() !== 0) {
     console.error("Please run the script as root.");
@@ -21,7 +37,7 @@ function validateEnvironment() {
 
   // Check if required files exist
   const requiredFiles = [
-    config.SERVER_CONF_FILE,
+    getConfigName(config.SERVER_INTERFACE_NAME),
     config.SERVER_KEYS.PUBLIC_KEY_FILE,
   ];
 
@@ -46,7 +62,10 @@ function validateUsername(username) {
   }
 
   // Check if user already exists
-  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(
+    getConfigName(config.SERVER_INTERFACE_NAME),
+    "utf8",
+  );
   if (serverConfig.includes(`# Peer configuration for ${username}`)) {
     throw new Error(`User ${username} already exists`);
   }
@@ -72,7 +91,10 @@ export function generateWireguardKeys() {
 }
 
 function getNextClientIP() {
-  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(
+    getConfigName(config.SERVER_INTERFACE_NAME),
+    "utf8",
+  );
   const ipRegex = /AllowedIPs = 192\.168\.200\.(\d+)/g;
   const ips = [];
   let match;
@@ -103,7 +125,7 @@ function addPeerToServerConfig(username, clientPublicKey, psk, clientIP) {
     `AllowedIPs = ${clientIP}/32`,
   ].join("\n");
 
-  fs.appendFileSync(config.SERVER_CONF_FILE, peerConfig);
+  fs.appendFileSync(getConfigName(config.SERVER_INTERFACE_NAME), peerConfig);
 }
 
 function generateClientConfig(username, clientPrivateKey, psk, clientIP) {
@@ -171,6 +193,7 @@ export function addUser(username) {
   // Return the configuration filename
   console.log(`Success! Configuration file created: ${clientConfigFileName}`);
   console.log(clientConfigFileName);
+  restart();
   return {
     username,
     ip: clientIP,
@@ -183,7 +206,10 @@ export function addUser(username) {
 export function deleteUser(username) {
   validateEnvironment();
 
-  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(
+    getConfigName(config.SERVER_INTERFACE_NAME),
+    "utf8",
+  );
   if (!serverConfig.includes(`# Peer configuration for ${username}`)) {
     throw new Error(`User ${username} does not exist`);
   }
@@ -207,7 +233,10 @@ export function deleteUser(username) {
     filteredLines.push(lines[i]);
   }
 
-  fs.writeFileSync(config.SERVER_CONF_FILE, filteredLines.join("\n"));
+  fs.writeFileSync(
+    getConfigName(config.SERVER_INTERFACE_NAME),
+    filteredLines.join("\n"),
+  );
 
   // Remove client config file
   const configFile = path.join(config.USER_KEYS_ROOT, `${username}.conf`);
@@ -216,13 +245,17 @@ export function deleteUser(username) {
   }
 
   console.log(`User ${username} deleted successfully`);
+  restart();
   return true;
 }
 
 export function listUsers() {
   validateEnvironment();
 
-  const serverConfig = fs.readFileSync(config.SERVER_CONF_FILE, "utf8");
+  const serverConfig = fs.readFileSync(
+    getConfigName(config.SERVER_INTERFACE_NAME),
+    "utf8",
+  );
   const userRegex = /# Peer configuration for (\w+)/g;
   const users = [];
   let match;
