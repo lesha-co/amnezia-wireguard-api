@@ -1,9 +1,6 @@
 import { addUser, deleteUser, listUsers } from "../WGUserManager.js";
 import express from "express";
 import crypto from "node:crypto";
-export function randomString() {
-  return crypto.randomBytes(24).toString("base64");
-}
 
 const router = express.Router();
 
@@ -33,7 +30,7 @@ router.get("/server", (req, res) => {
 // Access keys management endpoints
 router.post("/access-keys", (req, res) => {
   try {
-    const name = req.body.name ?? randomString();
+    const name = req.body.name ?? (Math.random() * 1000000000).toString(36);
     console.log(JSON.stringify(req.body));
     console.log("Creating a key for", name);
 
