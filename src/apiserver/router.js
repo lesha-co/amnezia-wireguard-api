@@ -30,7 +30,8 @@ router.get("/server", (req, res) => {
 // Access keys management endpoints
 router.post("/access-keys", (req, res) => {
   try {
-    const name = req.body.name ?? (Math.random() * 1000000000).toString(36);
+    const name =
+      req.body.name ?? Math.round(Math.random() * 1000000000).toString(36);
     console.log(JSON.stringify(req.body));
     console.log("Creating a key for", name);
 
