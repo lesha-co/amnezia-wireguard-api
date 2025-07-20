@@ -1,5 +1,9 @@
 import { addUser, deleteUser, listUsers } from "../WGUserManager.js";
 import express from "express";
+import crypto from "node:crypto";
+export function randomString() {
+  return crypto.randomBytes(24).toString("base64");
+}
 
 const router = express.Router();
 
@@ -29,12 +33,13 @@ router.get("/server", (req, res) => {
 // Access keys management endpoints
 router.post("/access-keys", (req, res) => {
   try {
-    const { name } = req.body;
+    const name = req.body.name ?? randomString;
     console.log(JSON.stringify(req.body));
     console.log("Creating a key for", name);
 
     // Validate required fields
     if (!name || typeof name !== "string") {
+      console.log("error!");
       return res.status(400).json({
         code: "INVALID_REQUEST",
         message: "Name is required",
@@ -145,6 +150,13 @@ router.delete("/access-keys/:id", async (req, res) => {
       message: "Internal server error",
     });
   }
+});
+
+router.get("/metrics/transfer", (req, res) => {
+  res.json({
+    upload: 12345,
+    download: 54321,
+  });
 });
 
 export default router;

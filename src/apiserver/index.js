@@ -6,18 +6,28 @@ import router from "./router.js";
 import fs from "node:fs";
 import ensureSSLCertificate from "./certificate.js";
 import config from "../../config.js";
-
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Initialize SSL certificate
+import getRawBody from "raw-body";
 const fingerprint = ensureSSLCertificate();
+const app = express();
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: true }));
+
+app.use(async (req, res, next) => {
+  try {
+    const raw = await getRawBody(req);
+    const str = raw.toString();
+    req.body = JSON.parse(str);
+  } catch (err) {
+    req.body = {};
+  }
+  next();
+});
 
 app.all("*", (req, res, next) => {
   console.log(
     `[${new Date().toISOString()}] : ${req.method} ${req.originalUrl}`,
   );
+  console.log(req.headers);
   next();
 });
 
@@ -50,13 +60,13 @@ https
     console.log(
       `WireGuard API server running on HTTPS port ${config.ADMIN.ADMIN_PORT}`,
     );
-    console.log(`Available endpoints:`);
-    console.log(`  GET    /health              - Health check`);
-    console.log(`  GET    /server              - Get server info`);
-    console.log(`  POST   /access-keys         - Create access key`);
-    console.log(`  GET    /access-keys         - List access keys`);
-    console.log(`  GET    /access-keys/:id     - Get specific access key`);
-    console.log(`  DELETE /access-keys/:id     - Delete access key`);
+    // console.log(`Available endpoints:`);
+    // console.log(`  GET    /health              - Health check`);
+    // console.log(`  GET    /server              - Get server info`);
+    // console.log(`  POST   /access-keys         - Create access key`);
+    // console.log(`  GET    /access-keys         - List access keys`);
+    // console.log(`  GET    /access-keys/:id     - Get specific access key`);
+    // console.log(`  DELETE /access-keys/:id     - Delete access key`);
     const cfg = {
       apiUrl: `https://${config.SERVER_IP.serverIP}:${config.ADMIN.ADMIN_PORT}/${config.ADMIN.SECRET_ENDPOINT}`,
       certSha256: fingerprint,
