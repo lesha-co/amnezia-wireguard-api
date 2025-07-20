@@ -5,16 +5,20 @@ services:
       dockerfile: Dockerfile
     container_name: amneziawg-api
     ports:
-      - "3443:3443"
+      - "3444:3444"
       - "51000:51000/udp"
     environment:
-      - PORT=3443
+      - PORT=3444
+      - AWG_PORT=51000
+      - CONFIG=/data/config.json
     privileged: true
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
     devices:
       - /dev/net/tun
+    volumes:
+      - ./data:/data
     restart: unless-stopped
     networks:
       - amneziawg-network

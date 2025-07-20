@@ -1,58 +1,22 @@
 #!/usr/bin/env node
-import fs from "node:fs";
-import path from "node:path";
 
-import {
-  addUser,
-  checkRootPrivileges,
-  generateWireguardKeys,
-  getConfigName,
-} from "./WGUserManager.js";
+import fsp from "node:fs/promises";
 
-import config from "../config.js";
+import { makeConfig } from "./facilities/mkConfig.js";
+import { createSSLCertificate } from "./apiserver/certificate.js";
+import { checkRootPrivileges } from "./facilities/checkRootPrivileges.js";
+import { exists } from "./facilities/exists.js";
 
-function isAlreadyInitialized() {
-  return (
-    fs.existsSync(getConfigName(config.SERVER_INTERFACE_NAME)) &&
-    fs.existsSync(config.SERVER_KEYS.PUBLIC_KEY_FILE) &&
-    fs.existsSync(config.SERVER_KEYS.PRIVATE_KEY_FILE)
-  );
+async function readConfig(configPath) {
+  return JSON.parse(await fsp.readFile(configPath, "utf8"));
 }
-
-function generateServerKeys() {
-  console.log("Generating server keys...");
-
-  try {
-    const serverKeys = generateWireguardKeys();
-    fs.mkdirSync(path.dirname(config.SERVER_KEYS.PRIVATE_KEY_FILE), {
-      recursive: true,
-    });
-    // Save server keys to files
-    fs.writeFileSync(
-      config.SERVER_KEYS.PRIVATE_KEY_FILE,
-      serverKeys.privateKey,
-    );
-    fs.mkdirSync(path.dirname(config.SERVER_KEYS.PUBLIC_KEY_FILE), {
-      recursive: true,
-    });
-
-    fs.writeFileSync(config.SERVER_KEYS.PUBLIC_KEY_FILE, serverKeys.publicKey);
-
-    console.log("Server keys generated successfully.");
-    return serverKeys;
-  } catch (error) {
-    throw new Error(`Error generating server keys: ${error.message}`);
-  }
-}
-
-function createInitialServerConfig(serverPrivateKey) {
+async function ensureWireguardServerConfig(config) {
+  // Create initial server configuration
   console.log("Creating initial server configuration...");
-
-  console.log(`Server port: ${config.SERVER_IP.serverPort}`);
 
   const serverConfig = [
     `[Interface]`,
-    `PrivateKey = ${serverPrivateKey}`,
+    `PrivateKey = ${config.SERVER_KEYS.PRIVATE_KEY}`,
     `Address = ${config.CLIENT_IP_BASE}1/32`,
     `ListenPort = ${config.SERVER_IP.serverPort}`,
     ``,
@@ -60,61 +24,49 @@ function createInitialServerConfig(serverPrivateKey) {
     ``,
   ].join("\n");
 
-  fs.writeFileSync(getConfigName(config.SERVER_INTERFACE_NAME), serverConfig);
-  fs.chmodSync(getConfigName(config.SERVER_INTERFACE_NAME), "600");
+  await fsp.writeFile(config.SERVER_INTERFACE_CONFIG, serverConfig);
+  await fsp.chmod(config.SERVER_INTERFACE_CONFIG, "600");
   console.log("Initial server configuration created.");
 }
 
-export function initializeServer() {
-  console.log("Initializing VPN server...");
+async function createFiles(config) {
+  await fsp.mkdir(config.USER_KEYS_ROOT, { recursive: true });
+  await createSSLCertificate(config.ADMIN.HTTPS_KEY);
+  await ensureWireguardServerConfig(config);
+}
 
-  // Check prerequisites
+export async function main() {
+  console.log("Initializing VPN server...");
   checkRootPrivileges();
 
-  // Check if already initialized
-  if (isAlreadyInitialized()) {
-    console.log("Server appears to be already initialized.");
-    console.log("Found existing configuration files:");
-    if (fs.existsSync(getConfigName(config.SERVER_INTERFACE_NAME)))
-      console.log(`- ${getConfigName(config.SERVER_INTERFACE_NAME)}`);
-    if (fs.existsSync(config.SERVER_KEYS.PUBLIC_KEY_FILE))
-      console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE}`);
-    if (fs.existsSync(config.SERVER_KEYS.PRIVATE_KEY_FILE))
-      console.log(`- ${config.SERVER_KEYS.PRIVATE_KEY_FILE}`);
-    console.log(
-      "Use WGUserManager.js to manage users or delete existing files to re-initialize.",
-    );
-    return false;
+  const configPath = process.env.CONFIG;
+  console.log(`Checking if config file exists... (${configPath})`);
+  // check data/config.json
+  if (await exists(configPath)) {
+    console.log("+ Main config file exists");
+    const config = await readConfig(configPath);
+    console.log(`Checking if additional files exists... `);
+    console.log(`  https certificate: ${config.ADMIN.HTTPS_KEY}`);
+    console.log(`  wireguard server config: ${config.SERVER_INTERFACE_CONFIG}`);
+    if (
+      (await exists(config.ADMIN.HTTPS_KEY)) &&
+      (await exists(config.SERVER_INTERFACE_CONFIG))
+    ) {
+      console.log(`+ additional files exist `);
+      return;
+    } else {
+      console.error(`! creating wg config and https certificate `);
+      await createFiles(config);
+    }
+  } else {
+    console.error("! Main config file does not exist");
+    await makeConfig();
+    const config = await readConfig(configPath);
+    await createFiles(config);
   }
-
-  // Generate server keys
-  const serverKeys = generateServerKeys();
-
-  // Create initial server configuration
-  createInitialServerConfig(serverKeys.privateKey);
-
-  // Add the default 'metaligh' user
-  console.log("Adding default user 'metaligh'...");
-  const metaligh = addUser("metaligh");
-
-  console.log("=".repeat(50));
-  console.log("VPN Server initialization completed successfully!");
-  console.log("=".repeat(50));
-  console.log("Generated files:");
-  console.log(
-    `- ${getConfigName(config.SERVER_INTERFACE_NAME)} (server configuration)`,
-  );
-  console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server public key)`);
-  console.log(`- ${config.SERVER_KEYS.PUBLIC_KEY_FILE} (server private key)`);
-  console.log(`- ${metaligh.configFile} (default user configuration)`);
-  console.log("");
-  console.log("Next steps:");
-  console.log("1. Copy the server configuration to your WireGuard server");
-  console.log("2. Start the WireGuard service with the new configuration");
-  console.log("3. Use WGUserManager.js to add/remove users as needed");
 }
 
 // Main execution check for ES modules
 if (import.meta.url === `file://${process.argv[1]}`) {
-  initializeServer();
+  main();
 }

@@ -1,7 +1,6 @@
 import { addUser, deleteUser, listUsers } from "../WGUserManager.js";
 import express from "express";
-import crypto from "node:crypto";
-
+import config from "/data/config.json" with { type: "json" };
 const router = express.Router();
 
 router.all("*", (req, res, next) => {
@@ -52,7 +51,7 @@ router.post("/access-keys", (req, res) => {
     console.log("Name is valid");
 
     // Add user using WGUserManager
-    const result = addUser(name);
+    const result = addUser(config, name);
 
     console.log("created", result.ip);
 
@@ -79,7 +78,7 @@ router.post("/access-keys", (req, res) => {
 router.get("/access-keys", (req, res) => {
   try {
     // Get all users using WGUserManager
-    const result = listUsers();
+    const result = listUsers(config);
 
     // Convert users to access keys format according to API spec
     const accessKeys = result.map((user) => ({
@@ -106,7 +105,7 @@ router.get("/access-keys/:id", async (req, res) => {
     const { id } = req.params;
 
     // Get all users to find the specific one
-    const result = listUsers();
+    const result = listUsers(config);
 
     // Find the specific user by ID
     const user = result.find((u) => u.username === id);
@@ -143,7 +142,7 @@ router.delete("/access-keys/:id", async (req, res) => {
     const { id } = req.params;
 
     // Delete user using WGUserManager
-    const result = deleteUser(id);
+    const result = deleteUser(config, id);
 
     res.status(204).send();
   } catch (error) {

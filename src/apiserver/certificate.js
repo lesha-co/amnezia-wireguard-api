@@ -1,57 +1,36 @@
 import path from "node:path";
 import { execSync } from "node:child_process";
-import config from "../../config.js";
-import fs from "node:fs";
 
-// SSL Certificate check and creation
-export default function ensureSSLCertificate() {
-  const pemPath = config.ADMIN.HTTPS_KEY;
+import fs from "node:fs/promises";
+
+export async function createSSLCertificate(pemPath) {
+  console.log("Creating a self-signed SSL certificate");
   const keyDir = path.dirname(pemPath);
 
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(keyDir)) {
-    fs.mkdirSync(keyDir, { recursive: true });
-  }
+  // Generate self-signed certificate and key in a single .pem file
+  const tempKey = path.join(keyDir, "temp.key");
+  const tempCert = path.join(keyDir, "temp.crt");
 
-  // Check if SSL pem file exists
-  if (!fs.existsSync(pemPath)) {
-    console.log(
-      "SSL certificate not found, creating self-signed certificate...",
-    );
+  // Create key and certificate
+  const opensslCmd = `openssl req -x509 -newkey rsa:4096 -keyout ${tempKey} -out ${tempCert} -days 365 -nodes -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=localhost"`;
+  execSync(opensslCmd, { stdio: "inherit" });
 
-    try {
-      // Generate self-signed certificate and key in a single .pem file
-      const tempKey = path.join(keyDir, "temp.key");
-      const tempCert = path.join(keyDir, "temp.crt");
+  // Combine key and certificate into single .pem file
+  const keyContent = await fs.readFile(tempKey, "utf8");
+  const certContent = await fs.readFile(tempCert, "utf8");
+  await fs.writeFile(pemPath, keyContent + certContent);
 
-      // Create key and certificate
-      const opensslCmd = `openssl req -x509 -newkey rsa:4096 -keyout ${tempKey} -out ${tempCert} -days 365 -nodes -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=localhost"`;
-      execSync(opensslCmd, { stdio: "inherit" });
+  // Clean up temporary files
+  await fs.unlink(tempKey);
+  await fs.unlink(tempCert);
 
-      // Combine key and certificate into single .pem file
-      const keyContent = fs.readFileSync(tempKey, "utf8");
-      const certContent = fs.readFileSync(tempCert, "utf8");
-      fs.writeFileSync(pemPath, keyContent + certContent);
+  console.log("Certificate created successfully");
+}
 
-      // Clean up temporary files
-      fs.unlinkSync(tempKey);
-      fs.unlinkSync(tempCert);
+// SSL Certificate check and creation
+export default function ensureSSLCertificate(config) {
+  const fingerprintCmd = `openssl x509 -noout -fingerprint -sha256 -in <(openssl x509 -in ${config.ADMIN.HTTPS_KEY})`;
 
-      console.log("Self-signed SSL certificate created successfully");
-    } catch (error) {
-      console.error("Failed to create SSL certificate:", error.message);
-      console.log("Continuing without SSL...");
-    }
-  } else {
-    console.log("SSL certificate found");
-  }
-
-  if (!fs.existsSync(pemPath)) {
-    throw new Error("SSL certificate not found");
-  }
-  // Print SSL certificate fingerprint if certificate exists
-
-  const fingerprintCmd = `openssl x509 -noout -fingerprint -sha256 -in <(openssl x509 -in ${pemPath})`;
   const fingerprint = execSync(`bash -c "${fingerprintCmd}"`, {
     encoding: "utf8",
   })
