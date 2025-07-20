@@ -16,9 +16,12 @@ export function restart() {
   // run
   // awg-quick down awg0
   // awg-quick up awg0
-  execSync(`awg-quick down ${config.SERVER_INTERFACE_NAME}`, {
-    stdio: "inherit",
-  });
+  try {
+    execSync(`awg-quick down ${config.SERVER_INTERFACE_NAME}`, {
+      stdio: "inherit",
+    });
+  } catch (x) {}
+
   execSync(`awg-quick up ${config.SERVER_INTERFACE_NAME}`, {
     stdio: "inherit",
   });
